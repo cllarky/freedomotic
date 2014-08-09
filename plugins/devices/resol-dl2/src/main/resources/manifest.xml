@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <properties>
+        <property name="description"    value="Communicates with the Resol DL2 over Ethernet"/>
+        <property name="protocol.name"  value="ETHResolDL2"/>
+        <property name="category"       value="protocol"/>
+        <property name="short-name"     value="ResolDL2"/>
+
+        <property name="startup-time"   value="on load"/>
+        <property name="polling-time"   value="5000"/>
+    </properties>
+    <tuples>
+        <!-- one tuple section for each DL2 device you are polling -->
+        <tuple>
+            <!-- as a minimum, you need to specify the ip: -->
+            <property name="ip-to-query" value="192.168.4.6"/>
+
+            <property name="port-to-query" value="80"/>
+            <property name="log_source_data" value="false"/>
+
+            <!--
+                The plugin will use the names returned by the Resol device,
+                otherwise they can be specified here.
+                Enable the log-source-data to find the appropriate indexes.
+            -->
+            <property name="device1.id" value="0"/>
+            <property name="device1.name" value="Deltasol BS"/>
+            <!--
+                We can specify the sensors we are interested in,
+                and give them more friendly names.
+                If not, all sensors found for each device will be reported on.
+            -->
+            <property name="device1.sensor1.name" value="ArrayTemp"/>
+            <property name="device1.sensor1.index" value="0"/>
+            <property name="device1.sensor2.name" value="CollectorTempBottom"/>
+            <property name="device1.sensor2.index" value="1"/>
+            <property name="device1.sensor3.name" value="CollectorTempTop"/>
+            <property name="device1.sensor3.index" value="2"/>
+            <property name="device1.sensor4.name" value="Relay"/>
+            <property name="device1.sensor4.index" value="4"/>
+        </tuple>
+        <!-- <tuple>
+            <property name="ip-to-query" value="192.168.4.6"/>
+            <property name="port-to-query" value="80"/>
+            <property name="log_source_data" value="false"/>
+        </tuple> -->
+    </tuples>
+</config>
