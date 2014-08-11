@@ -10,7 +10,7 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.ConnectException;
+import java.net.SocketException;
 import java.net.Socket;
 import java.net.URL;
 import java.util.ArrayList;
@@ -163,6 +163,10 @@ public class ResolDL2 extends Protocol {
         if (boards != null) {
             for (Board board : boards) {
                 getData(board);
+                // catch if we are exiting due to an error..
+                if (boards == null) {
+                    break;
+                }
             }
 
             try {
@@ -354,7 +358,6 @@ public class ResolDL2 extends Protocol {
             statusFileURL = "http://" + board.getIpAddress() + ":"
                     + Integer.toString(board.getPort()) + "/dl2/download/download?source=current&output_type=json";
             LOG.log(Level.INFO, "ResolDL2 module getting data from {0}", statusFileURL);
-
             jsonContent = readUrl(statusFileURL);
             Gson gson = new Gson();
 
@@ -420,26 +423,25 @@ public class ResolDL2 extends Protocol {
 
             }
 
+        } catch (SocketException errMsg) {
+            LOG.log(Level.SEVERE, "Plugin Resol DL2 connection timed out, no reply from the device at: {0}. {1}",
+                    new Object[]{statusFileURL, errMsg});
+            disconnect();
+            this.stop();
+            this.setDescription("Connection timed out, no reply from the device at " + statusFileURL);
         } catch (JsonSyntaxException errMsg) {
+            LOG.log(Level.SEVERE, "Plugin Resol DL2 JSON parse error: {0}. Bad data from {1}, Data: {2}",
+                    new Object[]{errMsg, statusFileURL, jsonContent});
             disconnect();
             this.stop();
             setDescription("Bad data from " + statusFileURL + jsonContent);
-            LOG.log(Level.SEVERE, "Module Resol DL2 JSON parse error: {0}. Bad data from {1}, Data: {2}",
-                    new Object[]{errMsg, statusFileURL, jsonContent});
 
-        } catch (ConnectException connEx) {
-            disconnect();
-            this.stop();
-            this.setDescription("Connection timed out, no reply from the board at " + statusFileURL);
-//        } catch (ParserConfigurationException ex) {
-//            disconnect();
-//            this.stop();
-//            LOG.severe(Freedomotic.getStackTraceInfo(ex));
-        } catch (Exception ex) {
+        } catch (Exception errMsg) {
+            LOG.log(Level.SEVERE, "Plugin Resol DL2 data collection error: {0}",
+                    new Object[]{errMsg});
             disconnect();
             this.stop();
             setDescription("Unable to connect to " + statusFileURL);
-            LOG.severe(Freedomotic.getStackTraceInfo(ex));
         }
     }
 
