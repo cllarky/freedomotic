@@ -56,7 +56,7 @@ public class ResolDL2 extends Protocol {
         setDescription("Module running, " + BOARD_NUMBER + " sources.");
         LOG.info("Loading Resol DL2 devices..");
         for (int i = 0; i < BOARD_NUMBER; i++) {
-            String ipToQuery = configuration.getTuples().getStringProperty(i, "ip-to-query", "192.168.1.201");
+            String ipToQuery = configuration.getTuples().getStringProperty(i, "ip-to-query", "");
             int portToQuery = configuration.getTuples().getIntProperty(i, "port-to-query", 80);
             boolean logSourceData = configuration.getTuples().getBooleanProperty(i, "log_source_data", false);
 
@@ -132,7 +132,8 @@ public class ResolDL2 extends Protocol {
         BOARD_NUMBER = configuration.getTuples().size();
 
         if (BOARD_NUMBER == 0) {
-            LOG.warning("ResolDL2 plugin failed: configuration not found.");
+            this.stop();
+            LOG.warning("ResolDL2 plugin failed to start: configuration not found or missing source config.");
 
         } else {
             POLLING_TIME = configuration.getIntProperty("polling-time", 1000);
@@ -146,18 +147,20 @@ public class ResolDL2 extends Protocol {
     @Override
     public void onStop() {
         super.onStop();
-        LOG.info("Stopping ResolDL2 plugin.");
+        // LOG.info("Stopping ResolDL2 plugin..");
         //release resources
         boards.clear();
         boards = null;
         setPollingWait(-1); //disable polling
         //display the default description
         setDescription(configuration.getStringProperty("description", "Resol DL2 Data"));
+        LOG.info("ResolDL2 plugin stopped.");
     }
 
     @Override
     protected void onRun() {
-        if (BOARD_NUMBER > 0) {
+        // check to see if the plugin has just been stopped..
+        if (boards != null) {
             for (Board board : boards) {
                 getData(board);
             }
@@ -169,7 +172,6 @@ public class ResolDL2 extends Protocol {
                 LOG.log(Level.SEVERE, null, ex);
             }
         }
-
     }
 
     private static String readUrl(String urlString) throws Exception {
