@@ -79,4 +79,5 @@
     </build>
     <description>Plugin for reading information from 
 Resol Solar controllers via the Resol DL2 data-logger.</description>
+    <groupId>com.freedomotic</groupId>
 </project>
