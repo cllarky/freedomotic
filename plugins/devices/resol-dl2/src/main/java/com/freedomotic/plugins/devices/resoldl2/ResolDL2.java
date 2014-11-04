@@ -4,6 +4,9 @@ import com.freedomotic.api.EventTemplate;
 import com.freedomotic.api.Protocol;
 import com.freedomotic.app.Freedomotic;
 import com.freedomotic.events.ProtocolRead;
+import com.freedomotic.exceptions.PluginShutdownException;
+import com.freedomotic.exceptions.PluginStartupException;
+import com.freedomotic.exceptions.PluginRuntimeException;
 import com.freedomotic.exceptions.UnableToExecuteException;
 import com.freedomotic.reactions.Command;
 import java.io.BufferedReader;
@@ -127,13 +130,13 @@ public class ResolDL2 extends Protocol {
     }
 
     @Override
-    public void onStart() {
+    public void onStart() throws PluginStartupException {
 
         BOARD_NUMBER = configuration.getTuples().size();
 
         if (BOARD_NUMBER == 0) {
             this.stop();
-            LOG.warning("ResolDL2 plugin failed to start: configuration not found or missing source config.");
+            throw new PluginStartupException("ResolDL2 plugin failed to start: configuration not found or missing source config.");
 
         } else {
             POLLING_TIME = configuration.getIntProperty("polling-time", 1000);
@@ -145,7 +148,7 @@ public class ResolDL2 extends Protocol {
     }
 
     @Override
-    public void onStop() {
+    public void onStop() throws PluginShutdownException {
         super.onStop();
         // LOG.info("Stopping ResolDL2 plugin..");
         //release resources
@@ -158,12 +161,14 @@ public class ResolDL2 extends Protocol {
     }
 
     @Override
-    protected void onRun() {
+    protected void onRun() throws PluginRuntimeException {
         // check to see if the plugin has just been stopped..
         if (boards != null) {
             for (Board board : boards) {
                 getData(board);
                 // catch if we are exiting due to an error..
+                // does this really happen?
+                // if so, we should throw the PluginRuntimeException
                 if (boards == null) {
                     break;
                 }
@@ -424,6 +429,8 @@ public class ResolDL2 extends Protocol {
             }
 
         } catch (SocketException errMsg) {
+            // do we really want to permanently give up here?
+            // maybe this is just a transient thing?
             LOG.log(Level.SEVERE, "Plugin Resol DL2 connection timed out, no reply from the device at: {0}. {1}",
                     new Object[]{statusFileURL, errMsg});
             disconnect();
