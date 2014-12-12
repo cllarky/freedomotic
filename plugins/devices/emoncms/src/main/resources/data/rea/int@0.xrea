@@ -1,0 +1,7 @@
+<com.freedomotic.reactions.Reaction>
+  <trigger>An object has changed</trigger>
+  <sequence>
+    <command>Save data to emoncms</command>
+  </sequence>
+  
+</com.freedomotic.reactions.Reaction>
