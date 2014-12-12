@@ -1,0 +1,13 @@
+
+<com.freedomotic.reactions.Command>
+  <name>Save data to emoncms</name>
+  <receiver>app.actuators.protocol.emoncms.in</receiver>
+  <description>Save data to emoncms</description>
+  <delay>0</delay>
+  <timeout>10000</timeout>
+  <properties>
+        <properties>
+            <property name="command" value="SAVE-DATA"/>
+	</properties>
+    </properties>
+</com.freedomotic.reactions.Command>

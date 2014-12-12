@@ -1,0 +1,24 @@
+<config>
+    <properties>
+        <property name="name" value="emoncms"/>
+        <property name="description" value="Plugin to enable data to be pushed to emoncms remote server."/>
+        <property name="version" value="0.1"/>
+        <property name="required" value="5.5.0"/>
+        <property name="category"       value="protocol"/>
+        <property name="protocol.name"  value="emoncms"/>
+        <property name="short-name" value="emoncms"/>
+        <property name="startup-time"   value="on load"/>
+        <property name="polling-time"   value="10000"/>
+        
+        <property name="target" value="http://emoncms.org/input/post.json"/>
+        <property name="node" value="1"/>
+        <property name="apikey" value="3b76dda4a6df96f748248ea949a3510f"/>
+        
+        <!-- mapping of text to numbers before sending to emoncms. All values stored here as strings.. -->
+        <property name="valuemap-true" value="1"/>
+        <property name="valuemap-false" value="0"/>
+        
+    </properties>
+</config>
+
+                
