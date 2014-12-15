@@ -1,6 +1,6 @@
 <trigger>
-    <name>When a door is double-clicked</name>
-    <description>When a door is double-clicked</description>
+    <name>When Thermometer is clicked</name>
+    <description>When Thermometer is clicked</description>
     <channel>app.event.sensor.object.behavior.clicked</channel>   
     <delay>0</delay>
     <payload>
@@ -9,13 +9,13 @@
               <logical>AND</logical>
               <attribute>object.type</attribute>
               <operand>REGEX</operand>
-              <value>^EnvObject.Gate(.*)</value>
+              <value>^EnvObject.Thermometer(.*)</value>
             </statement>
             <statement>
               <logical>AND</logical>
               <attribute>click</attribute>
               <operand>EQUALS</operand>
-              <value>DOUBLE_CLICK</value>
+              <value>SINGLE_CLICK</value>
             </statement>
         </payload>
     </payload>
