@@ -2,5 +2,6 @@
   <trigger>Kitchen Light turns on</trigger>
   <sequence>
     <command>Say electric device status</command>
+    <command>Send command to Hello World Plugin</command>
   </sequence>
 </reaction>
