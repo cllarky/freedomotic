@@ -2,13 +2,7 @@
   <trigger>Every five seconds</trigger>
   <conditions>
     <condition>
-        <target>Kitchen Light</target>
-        <statement>
-            <logical>OR</logical>
-            <attribute>powered</attribute>
-            <operand>EQUALS</operand>
-            <value>true</value>
-        </statement>
+
     </condition>
   </conditions>
   <sequence>
