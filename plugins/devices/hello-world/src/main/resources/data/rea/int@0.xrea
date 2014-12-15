@@ -1,5 +1,5 @@
 <reaction>
-  <trigger>When a door is double-clicked</trigger>
+  <trigger>When Thermometer is clicked</trigger>
   <sequence>
     <command>Send command to Hello World Plugin</command>
   </sequence>
