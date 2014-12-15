@@ -1,5 +1,16 @@
 <reaction>
-  <trigger>When Thermostat is clicked</trigger>
+  <trigger>Every five seconds</trigger>
+  <conditions>
+    <condition>
+        <target>Kitchen Light</target>
+        <com.freedomotic.reactions.Statement>
+            <logical>OR</logical>
+            <attribute>powered</attribute>
+            <operand>EQUALS</operand>
+            <value>true</value>
+        </com.freedomotic.reactions.Statement>
+    </condition>
+  </conditions>
   <sequence>
     <command>Send command to Hello World Plugin</command>
   </sequence>
