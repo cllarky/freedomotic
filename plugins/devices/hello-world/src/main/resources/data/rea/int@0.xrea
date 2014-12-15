@@ -1,5 +1,5 @@
 <reaction>
-  <trigger>When a door is clicked</trigger>
+  <trigger>When a door is double-clicked</trigger>
   <sequence>
     <command>Send command to Hello World Plugin</command>
   </sequence>

@@ -6,5 +6,6 @@
         <property name="time-between-reads"   value="60000"/>
         <property name="category"       value="protocol"/>
         <property name="protocol.name"  value="helloworld"/>
+        <property name="startup-time"   value="on load"/>
     </properties>
 </config>
