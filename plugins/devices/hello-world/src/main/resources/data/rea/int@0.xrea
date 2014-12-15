@@ -1,10 +1,5 @@
 <reaction>
   <trigger>Every five seconds</trigger>
-  <conditions>
-    <condition>
-
-    </condition>
-  </conditions>
   <sequence>
     <command>Send command to Hello World Plugin</command>
   </sequence>
