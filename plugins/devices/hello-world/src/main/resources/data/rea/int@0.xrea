@@ -3,12 +3,12 @@
   <conditions>
     <condition>
         <target>Kitchen Light</target>
-        <com.freedomotic.reactions.Statement>
+        <statement>
             <logical>OR</logical>
             <attribute>powered</attribute>
             <operand>EQUALS</operand>
             <value>true</value>
-        </com.freedomotic.reactions.Statement>
+        </statement>
     </condition>
   </conditions>
   <sequence>
