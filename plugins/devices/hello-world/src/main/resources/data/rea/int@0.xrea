@@ -1,5 +1,5 @@
 <reaction>
-  <trigger>When Thermometer is clicked</trigger>
+  <trigger>When Thermostat is clicked</trigger>
   <sequence>
     <command>Send command to Hello World Plugin</command>
   </sequence>
