@@ -1,0 +1,17 @@
+<trigger>
+    <name>When a door is clicked</name>
+    <description>When a door is clicked</description>
+    <channel>app.event.sensor.object.behavior.clicked</channel>   
+    <delay>0</delay>
+    <payload>
+        <payload>
+            <statement>
+              <logical>AND</logical>
+              <attribute>object.type</attribute>
+              <operand>REGEX</operand>
+              <value>^EnvObject.Gate(.*)</value>
+            </statement>
+        </payload>
+    </payload>
+</trigger>
+

@@ -46,7 +46,7 @@ public class HelloWorld
         POLLING_WAIT = configuration.getIntProperty("time-between-reads", 2000);
         //POLLING_WAIT is the value of the property "time-between-reads" or 2000 millisecs,
         //default value if the property does not exist in the manifest
-        setPollingWait(POLLING_WAIT); //millisecs interval between hardware device status reads
+        // setPollingWait(POLLING_WAIT); //millisecs interval between hardware device status reads
     }
 
     @Override
@@ -75,6 +75,9 @@ public class HelloWorld
 
     @Override
     protected void onStart() {
+        
+        setPollingWait(POLLING_WAIT);
+                
         LOG.info("HelloWorld plugin is started");
     }
 

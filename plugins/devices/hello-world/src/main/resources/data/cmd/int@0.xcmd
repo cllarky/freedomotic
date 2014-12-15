@@ -1,0 +1,12 @@
+<command>
+  <name>Send command to Hello World Plugin</name>
+  <receiver>app.actuators.protocol.helloworld.in</receiver>
+  <description>Send command to Hello World Plugin</description>
+  <delay>0</delay>
+  <timeout>10000</timeout>
+  <properties>
+        <properties>
+            <property name="command" value="test"/>
+	</properties>
+    </properties>
+</command>
