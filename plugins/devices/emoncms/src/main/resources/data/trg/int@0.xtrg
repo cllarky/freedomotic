@@ -1,4 +1,4 @@
-<com.freedomotic.reactions.Trigger>
+<trigger>
     <name>An object has changed</name>
     <description>When an object changed one of his behaviors</description>
     <channel>app.event.sensor.object.behavior.change</channel>   
@@ -7,4 +7,4 @@
         <payload>
         </payload>
     </payload>
-</com.freedomotic.reactions.Trigger>
+</trigger>
