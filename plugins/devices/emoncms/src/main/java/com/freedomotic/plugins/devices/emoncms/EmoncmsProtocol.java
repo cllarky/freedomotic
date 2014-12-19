@@ -55,9 +55,12 @@ public final class EmoncmsProtocol extends Protocol {
     // make an object for the data..
     private final Map<String, Object> EMONCMSDATA = new HashMap<>();
     private final static Logger LOG = LoggerFactory.getLogger(EmoncmsProtocol.class.getName());
-    private final String CHARSET = "UTF-8";
-    private int SEND_FAILURES = 0;
-    private final int SEND_RETRY = configuration.getIntProperty("send-retry", 5);
+    private final String CHARSET = configuration.getStringProperty("charset", "UTF-8");
+    private int POST_INTERVAL = configuration.getIntProperty("post-interval", 10);
+    private int MAX_POST_INTERVAL = configuration.getIntProperty("max-post-interval", 600);
+    private int FAILED_TIME;
+    private int SEND_FAILURES;
+    private String PLUGIN_DESCRIPTION = "";
 
     public EmoncmsProtocol() {
         super("EmoncmsProtocol", "/emoncms/manifest.xml");
@@ -67,6 +70,7 @@ public final class EmoncmsProtocol extends Protocol {
     @Override
     public void onStart() throws PluginStartupException{
         setDescription("Starting plugin..");
+        FAILED_TIME = 0;
         SEND_FAILURES = 0;
         
         try {
@@ -76,8 +80,8 @@ public final class EmoncmsProtocol extends Protocol {
             
             
             setDescription("Saving data to: " + configuration.getStringProperty("target",""));
-            setPollingWait(configuration.getIntProperty("polling-time", 60000));
-            LOG.info("Emoncms plugin started. Saving data to emoncms every {} seconds.", configuration.getIntProperty("polling-time", 20000)/1000);
+            setPollingWait(POST_INTERVAL * 1000);
+            LOG.info("Emoncms plugin started. Saving data to emoncms every {} seconds.", POST_INTERVAL);
         } catch (Exception e) {
             LOG.error("Emoncms plugin failed to start: {}", e.getLocalizedMessage());
             throw new PluginStartupException("Emoncms plugin failed to start.", e);
@@ -88,14 +92,19 @@ public final class EmoncmsProtocol extends Protocol {
     public void onStop() {
         setPollingWait(-1); // disable polling
         LOG.info("Emoncms plugin stopped.");
-        this.setDescription("Save data to Emoncms.");
+        if (PLUGIN_DESCRIPTION.isEmpty()) {
+            this.setDescription("Save data to Emoncms.");
+        } else {
+            this.setDescription(PLUGIN_DESCRIPTION);
+            PLUGIN_DESCRIPTION = "";
+        }
     }
     
     @Override
     protected void onRun() throws PluginRuntimeException {
         LOG.debug("In onRun.");
         
-        // here we will push the data to emoncms..
+        // here we will post the data to emoncms..
         
         if (EMONCMSDATA.isEmpty()) {
             // do nothing..
@@ -155,6 +164,8 @@ public final class EmoncmsProtocol extends Protocol {
                 if (status == 200) {
                     EMONCMSDATA.clear();
                     SEND_FAILURES = 0;
+                    POST_INTERVAL = configuration.getIntProperty("post-interval", 10);
+                    setPollingWait(POST_INTERVAL * 1000);
                 }
                 
             } catch (UnsupportedEncodingException | MalformedURLException e) {
@@ -163,21 +174,32 @@ public final class EmoncmsProtocol extends Protocol {
             } catch (UnknownHostException e) {
                 LOG.warn("Failed to send data (unknown host): {}", e.getMessage());
                 SEND_FAILURES +=1;
-                setDescription("Send failed. Retrying (" + SEND_FAILURES + ")..");
+                setDescription("Post failed. Retrying (" + SEND_FAILURES + ")..");
             } catch (IOException e) {
                 LOG.warn("Failed to send data: {}", e.getMessage());
                 SEND_FAILURES +=1;
-                setDescription("Send failed. Retrying (" + SEND_FAILURES + ")..");
+                setDescription("Post failed. Retrying (" + SEND_FAILURES + ")..");
             }
     
-            if (SEND_FAILURES >= SEND_RETRY) {
-                LOG.warn("Giving up after {} tries.", SEND_RETRY);
-                stop();
-                setDescription("Plugin gave up after " + SEND_RETRY + " failed sends.");
-                throw new PluginRuntimeException("Emoncms plugin giving up after " + SEND_RETRY + " failed send attempts.");
+            if (SEND_FAILURES > 0) {
+                // failed to send, so we increase the polling interval..
+                FAILED_TIME += POST_INTERVAL;
+                POST_INTERVAL = POST_INTERVAL * 2;
+                if (POST_INTERVAL > MAX_POST_INTERVAL) {
+                    POST_INTERVAL = MAX_POST_INTERVAL;
+                }
+
+                if (FAILED_TIME > configuration.getIntProperty("giveup-time", 86400)) {
+                    // we give up at this point..
+                    POST_INTERVAL = configuration.getIntProperty("polling-interval", 10);
+                    LOG.warn("Giving up after {} tries over {} seconds.", SEND_FAILURES, FAILED_TIME );
+                    PLUGIN_DESCRIPTION = "Plugin gave up after " + SEND_FAILURES + " failed posts.";
+                    throw new PluginRuntimeException("Emoncms plugin giving up after " + SEND_FAILURES + " failed post attempts.");
+                }
+                setPollingWait(POST_INTERVAL * 1000);
+                LOG.info("Fails: {}. Trying next post in {} seconds.", SEND_FAILURES, POST_INTERVAL);
             }
         }
-        
     }
 
     @Override
