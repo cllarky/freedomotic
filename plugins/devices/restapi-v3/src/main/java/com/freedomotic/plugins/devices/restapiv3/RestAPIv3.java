@@ -33,6 +33,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.inject.Inject;
 import javax.ws.rs.core.UriBuilder;
+import org.apache.shiro.web.mgt.DefaultWebSecurityManager;
 
 public class RestAPIv3 extends Protocol {
 
@@ -43,14 +44,24 @@ public class RestAPIv3 extends Protocol {
 
     public static URI BASE_URI;
     public static final String API_VERSION = "v3";
-    
+
     @Inject
     private RestJettyServer jServer;
+    @Inject
+    private AtmosphereObjectChangeResource atmosphereObjectChangeResource;
+    @Inject
+    private AtmosphereZoneChangeResource atmosphereZoneChangeResource;
+    @Inject
+    private AtmospherePluginChangeResource atmospherePluginChangeResource;
+    
+    // Hold a preconfigurd static web security manager which can be used by Shiro
+    public static DefaultWebSecurityManager defaultWebSecurityManager;
 
     public RestAPIv3() {
         super("RestAPI-v3", "/restapi-v3/restapiv3-manifest.xml");
         setPollingWait(-1);
-
+        // Create the preconfigured security manager
+        createDefaultWebSecurityManager();
     }
 
     @Override
@@ -65,22 +76,21 @@ public class RestAPIv3 extends Protocol {
         int port = configuration.getBooleanProperty("enable-ssl", false) ? configuration.getIntProperty("https-port", 9113) : configuration.getIntProperty("http-port", 9111);
 
         BASE_URI = UriBuilder.fromUri(protocol + "://" + configuration.getStringProperty("listen-address", "localhost") + "/").path(API_VERSION).port(port).build();
-        
+
         LOG.log(Level.INFO, "RestAPI v3 plugin is started at {0}", BASE_URI);
 
-        
         try {
             jServer.setMaster(this);
             jServer.startServer();
-            setDescription("API is available at " + BASE_URI.toString().substring(0,BASE_URI.toString().length()-2));
+            setDescription("API is available at " + BASE_URI.toString().substring(0, BASE_URI.toString().length() - 2));
         } catch (Exception ex) {
-           LOG.log(Level.SEVERE, null, ex);
+            LOG.log(Level.SEVERE, null, ex);
         }
-        
+
         addEventListener("app.event.sensor.object.behavior.change");
         addEventListener("app.event.sensor.environment.zone.change");
         addEventListener("app.event.sensor.plugin.change");
-        
+
     }
 
     @Override
@@ -109,12 +119,16 @@ public class RestAPIv3 extends Protocol {
     @Override
     protected void onEvent(EventTemplate event) {
         if (event instanceof ObjectHasChangedBehavior) {
-            AtmosphereObjectChangeResource.broadcast(event);
+            atmosphereObjectChangeResource.broadcast(event);
         } else if (event instanceof ZoneHasChanged) {
-            AtmosphereZoneChangeResource.broadcast(event);
+            atmosphereZoneChangeResource.broadcast(event);
         } else if (event instanceof PluginHasChanged) {
-            AtmospherePluginChangeResource.broadcast(event);
+            atmospherePluginChangeResource.broadcast(event);
         }
+    }
+
+    public final void createDefaultWebSecurityManager() {
+        defaultWebSecurityManager = new DefaultWebSecurityManager(this.getApi().getAuth().getUserRealm());
     }
 
 }

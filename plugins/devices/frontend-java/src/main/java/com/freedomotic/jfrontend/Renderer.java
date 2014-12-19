@@ -28,7 +28,7 @@ import com.freedomotic.i18n.I18n;
 import com.freedomotic.model.geometry.FreedomPoint;
 import com.freedomotic.model.object.EnvObject;
 import com.freedomotic.model.object.Representation;
-import com.freedomotic.objects.EnvObjectLogic;
+import com.freedomotic.things.EnvObjectLogic;
 import com.freedomotic.util.TopologyUtils;
 import java.awt.AlphaComposite;
 import java.awt.Color;
@@ -58,15 +58,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.logging.Logger;
 
 /**
  *
  * @author enrico
  */
-public class Renderer
-        extends Drawer
-        implements MouseListener,
-        MouseMotionListener {
+public class Renderer extends Drawer implements MouseListener, MouseMotionListener {
+
+    private static final Logger LOG = Logger.getLogger(Renderer.class.getName());
 
     private JavaDesktopFrontend plugin;
     private Graphics graph;
@@ -118,7 +118,7 @@ public class Renderer
         CANVAS_WIDTH = environmentWidth + (BORDER_X * 2);
         CANVAS_HEIGHT = environmentHeight + (BORDER_Y * 2);
         backgroundColor = TopologyUtils.convertColorToAWT(getEnvironments().get(0).getPojo().getBackgroundColor());
-        calloutsUpdater = new CalloutsUpdater(this, 500);
+        calloutsUpdater = new CalloutsUpdater(this, 900);
         currEnv = getEnvironments().get(0);
         ResourcesManager.clear();
         clear();
@@ -148,12 +148,10 @@ public class Renderer
         if (objEditorPanels.containsKey(obj)) {
             if (objEditorPanels.get(obj) == null) {
                 objEditorPanels.remove(obj);
-                objEditorPanels.put(obj,
-                        new ObjectEditor(obj));
+                objEditorPanels.put(obj, new ObjectEditor(obj));
             }
         } else {
-            objEditorPanels.put(obj,
-                    new ObjectEditor(obj));
+            objEditorPanels.put(obj, new ObjectEditor(obj));
         }
 
         ObjectEditor currEditorPanel = objEditorPanels.get(obj);
@@ -377,8 +375,8 @@ public class Renderer
                 renderHandles();
             }
         } catch (Exception e) {
-            Freedomotic.logger.severe("Error while painting environment");
-            Freedomotic.logger.severe(Freedomotic.getStackTraceInfo(e));
+            LOG.severe("Error while painting environment");
+            LOG.severe(Freedomotic.getStackTraceInfo(e));
         } finally {
             restoreTransformContext();
         }
@@ -440,6 +438,18 @@ public class Renderer
     private void renderCalloutsLayer() {
         int numOfInfoLines = 0;
         int offset = 0;
+
+        // Print mouse coordinates
+        Callout mousePointer = calloutsUpdater.getMousePointerCallout();
+        if (mousePointer != null) {
+            drawString(mousePointer.getText(),
+                    (int) mousePointer.getPosition().getX(),
+                    (int) mousePointer.getPosition().getY(),
+                    (float) 0.0,
+                    mousePointer.getColor());
+        }
+
+        // Print all other callouts
         synchronized (calloutsUpdater.getPrintableCallouts()) {
             for (Callout callout : calloutsUpdater.getPrintableCallouts()) {
                 //display multiple info callouts on different lines
@@ -568,7 +578,7 @@ public class Renderer
                     getHeight(),
                     BufferedImage.TYPE_INT_ARGB);
         } catch (Exception e) {
-            Freedomotic.logger.severe(Freedomotic.getStackTraceInfo(e));
+            LOG.severe(Freedomotic.getStackTraceInfo(e));
         }
 
         return img;
@@ -681,7 +691,7 @@ public class Renderer
         if (img != null) {
             getContext().drawImage(img, 0, 0, this);
         } else {
-            Freedomotic.logger.warning("Cannot find image " + obj.getCurrentRepresentation().getIcon()
+            LOG.warning("Cannot find image " + obj.getCurrentRepresentation().getIcon()
                     + " for object " + obj.getName());
             throw new RuntimeException();
         }
@@ -1122,7 +1132,7 @@ public class Renderer
             if (!inDrag) {
                 Point mouse = toRealCoords(e.getPoint());
 
-                //create a callot which says the coordinates of click
+                //create a callout which says the coordinates of the mouse in the environment (centimeters)
                 Callout callout = new Callout(this.getClass().getCanonicalName(), "mouse",
                         (int) mouse.getX() + "cm," + (int) mouse.getY() + "cm", (int) mouse.getX(),
                         (int) mouse.getY(), 0, -1);

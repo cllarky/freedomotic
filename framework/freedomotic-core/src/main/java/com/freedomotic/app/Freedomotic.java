@@ -26,7 +26,6 @@ import com.freedomotic.bus.BootStatus;
 import com.freedomotic.bus.BusConsumer;
 import com.freedomotic.bus.BusMessagesListener;
 import com.freedomotic.bus.BusService;
-import com.freedomotic.core.BehaviorManager;
 import com.freedomotic.core.SynchManager;
 import com.freedomotic.core.TopologyManager;
 import com.freedomotic.environment.EnvironmentLogic;
@@ -39,9 +38,8 @@ import com.freedomotic.exceptions.PluginLoadingException;
 import com.freedomotic.marketplace.ClassPathUpdater;
 import com.freedomotic.marketplace.IPluginCategory;
 import com.freedomotic.marketplace.MarketPlaceService;
-import com.freedomotic.objects.EnvObjectLogic;
-import com.freedomotic.objects.ThingsRepositoryImpl;
-import com.freedomotic.objects.ThingsRepository;
+import com.freedomotic.things.EnvObjectLogic;
+import com.freedomotic.things.ThingRepository;
 import com.freedomotic.plugins.ClientStorage;
 import com.freedomotic.plugins.PluginsManager;
 import com.freedomotic.reactions.Command;
@@ -50,7 +48,6 @@ import com.freedomotic.reactions.ReactionPersistence;
 import com.freedomotic.reactions.TriggerPersistence;
 import com.freedomotic.security.Auth;
 import com.freedomotic.security.UserRealm;
-import com.freedomotic.serial.SerialConnectionProvider;
 import com.freedomotic.util.Info;
 import com.freedomotic.util.LogFormatter;
 import com.google.inject.Guice;
@@ -66,6 +63,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
@@ -87,19 +85,8 @@ import org.slf4j.bridge.SLF4JBridgeHandler;
  */
 public class Freedomotic implements BusConsumer {
 
-    /**
-     *
-     * @deprecated
-     */
-    @Deprecated
-    public static final Logger logger = Logger.getLogger("com.freedomotic");
-    //this should replace Freedomotic.logger reference
     private static final Logger LOG = Logger.getLogger(Freedomotic.class.getName());
     public static String INSTANCE_ID;
-
-    /**
-     *
-     */
     public static ArrayList<IPluginCategory> onlinePluginCategories;
     /**
      * Should NOT be used. Reserved for una tantum internal freedomotic core use
@@ -109,7 +96,7 @@ public class Freedomotic implements BusConsumer {
     public static Injector INJECTOR;
     //dependencies
     private final EnvironmentRepository environmentRepository;
-    private final ThingsRepository thingsRepository;
+    private final ThingRepository thingsRepository;
     private final TopologyManager topologyManager;
     private final SynchManager synchManager;
     private final ClientStorage clientStorage;
@@ -123,9 +110,9 @@ public class Freedomotic implements BusConsumer {
 
     /**
      *
-     * @param environmentLoaderFactory
      * @param pluginsLoader
      * @param environmentRepository
+     * @param thingsRepository
      * @param clientStorage
      * @param config
      * @param api
@@ -137,7 +124,7 @@ public class Freedomotic implements BusConsumer {
     public Freedomotic(
             PluginsManager pluginsLoader,
             EnvironmentRepository environmentRepository,
-            ThingsRepository thingsRepository,
+            ThingRepository thingsRepository,
             ClientStorage clientStorage,
             AppConfig config,
             API api,
@@ -161,11 +148,10 @@ public class Freedomotic implements BusConsumer {
      * @throws FreedomoticException
      */
     public void start() throws FreedomoticException {
-        /**
-         * ******************************************************************
-         * First of all the configuration file is loaded into a data structure
-         * *****************************************************************
-         */
+        // Relocate base data folder according to configuration (if specified in the config file)
+        // Do not move it in AppConfigImpl otherwise unit tests will become dependent to the presence of the data folder
+        String defaultPath = Info.PATHS.PATH_DATA_FOLDER.getAbsolutePath();
+        Info.relocateDataPath(new File(config.getStringProperty("KEY_DATA_PATH", defaultPath)));
 
         // init localization
         api.getI18n().setDefaultLocale(config.getStringProperty("KEY_ENABLE_I18N", "no"));
@@ -231,9 +217,9 @@ public class Freedomotic implements BusConsumer {
                 FileHandler handler = new FileHandler(logfile.getAbsolutePath(),
                         false);
                 handler.setFormatter(new LogFormatter());
-                logger.setLevel(Level.ALL);
-                logger.addHandler(handler);
-                logger.config(api.getI18n().msg("INIT_MESSAGE"));
+                LOG.setLevel(Level.ALL);
+                LOG.addHandler(handler);
+                LOG.config(api.getI18n().msg("INIT_MESSAGE"));
 
                 if ((config.getBooleanProperty("KEY_LOGGER_POPUP", true) == true)
                         && (java.awt.Desktop.getDesktop().isSupported(Desktop.Action.BROWSE))) {
@@ -254,7 +240,7 @@ public class Freedomotic implements BusConsumer {
 //            try {
 //                CopyFile.copy(new File(Info.getDatafilePath()), new File(Info.getApplicationPath() + "/backup"));
 //            } catch (Exception ex) {
-//                logger.warning("unable to save a backup copy of application data " + getStackTraceInfo(ex));
+//                logger.warning("unable to saveAll a backup copy of application data " + getStackTraceInfo(ex));
 //            }
 //        }
         /**
@@ -280,9 +266,7 @@ public class Freedomotic implements BusConsumer {
         try {
             pluginsManager.loadAllPlugins();
         } catch (PluginLoadingException ex) {
-            LOG.log(Level.WARNING,
-                    "Cannot load event plugin {0}. {1}",
-                    new Object[]{ex.getPluginName(), ex.getMessage()});
+            LOG.log(Level.WARNING,"Error while loading all plugins. Impossible to load " + ex.getPluginName(), ex);
         }
 
         /**
@@ -325,14 +309,15 @@ public class Freedomotic implements BusConsumer {
         // Bootstrap Things in the environments
         // This should be done after loading all Things plugins otherwise
         // its java class will not be recognized by the system
+        environmentRepository.init();
         for (EnvironmentLogic env : environmentRepository.findAll()) {
             // Load all the Things in this environment
             File thingsFolder = env.getObjectFolder();
-            for (File thingFile : thingsFolder.listFiles()) {
-                EnvObjectLogic loadedThing = thingsRepository.load(thingFile);
-                loadedThing.setEnvironment(env);
+            List<EnvObjectLogic> loadedThings = thingsRepository.loadAll(thingsFolder);
+            for (EnvObjectLogic thing: loadedThings) {
+                thing.setEnvironment(env);
                 // Actvates the Thing. Important, otherwise it will be not visible in the environment
-                thingsRepository.create(loadedThing);
+                thingsRepository.create(thing);
             }
         }
 
@@ -340,10 +325,6 @@ public class Freedomotic implements BusConsumer {
         TriggerPersistence.loadTriggers(new File(Info.PATHS.PATH_DATA_FOLDER + "/trg/"));
         CommandPersistence.loadCommands(new File(Info.PATHS.PATH_DATA_FOLDER + "/cmd/"));
         ReactionPersistence.loadReactions(new File(Info.PATHS.PATH_DATA_FOLDER + "/rea/"));
-
-        // A service to add environment objects using XML commands
-        new BehaviorManager();
-        new SerialConnectionProvider();
 
         // Starting plugins
         for (Client plugin : clientStorage.getClients()) {
@@ -492,26 +473,24 @@ public class Freedomotic implements BusConsumer {
         ReactionPersistence.saveReactions(new File(savedDataRoot + "/rea"));
 
         //save the environment
-        String environmentFilePath
-                = Info.PATHS.PATH_DATA_FOLDER + "/furn/" + config.getProperty("KEY_ROOM_XML_PATH");
+        String environmentFilePath = Info.PATHS.PATH_DATA_FOLDER + "/furn/" + config.getProperty("KEY_ROOM_XML_PATH");
         File folder = null;
 
         try {
             folder = new File(environmentFilePath).getParentFile();
-
             environmentRepository.saveEnvironmentsToFolder(folder);
 
             if (config.getBooleanProperty("KEY_OVERRIDE_OBJECTS_ON_EXIT", false) == true) {
                 File saveDir = null;
                 try {
                     saveDir = new File(folder + "/data/obj");
-                    ThingsRepositoryImpl.saveObjects(saveDir);
+                    thingsRepository.saveAll(saveDir);
                 } catch (RepositoryException ex) {
-                    LOG.severe("Cannot save objects in " + saveDir.getAbsolutePath().toString());
+                    LOG.log(Level.SEVERE, "Cannot save objects in {0}", saveDir.getAbsolutePath());
                 }
             }
         } catch (RepositoryException ex) {
-            LOG.severe("Cannot save environment to folder " + folder + "due to " + ex.getCause());
+            LOG.log(Level.SEVERE, "Cannot save environment to folder {0} due to {1}", new Object[]{folder, ex.getCause()});
         }
 
         System.exit(0);

@@ -6,19 +6,17 @@ package com.freedomotic.app;
 
 import com.freedomotic.api.InjectorApi;
 import com.freedomotic.bus.InjectorBus;
-import com.freedomotic.core.JoinPlugin;
-import com.freedomotic.core.TriggerCheck;
-import com.freedomotic.environment.InjectorEnvironment;
-import com.freedomotic.events.ProtocolRead;
-import com.freedomotic.plugins.InjectorPlugins;
-import com.freedomotic.security.Auth;
-import com.freedomotic.security.AuthImpl2;
-import com.freedomotic.i18n.I18n;
-import com.freedomotic.i18n.I18nImpl;
-import com.freedomotic.objects.InjectorThings;
+import com.freedomotic.core.InjectorFeatures;
+import com.freedomotic.environment.impl.InjectorEnvironment;
+import com.freedomotic.plugins.impl.InjectorPlugins;
+import com.freedomotic.i18n.InjectorI18n;
+import com.freedomotic.nlp.InjectorNlp;
+import com.freedomotic.things.impl.InjectorThings;
+import com.freedomotic.persistence.InjectorPersistence;
+import com.freedomotic.reactions.InjectorAutomations;
+import com.freedomotic.security.InjectorSecurity;
 import com.google.inject.AbstractModule;
 import com.google.inject.Singleton;
-
 
 /**
  *
@@ -33,18 +31,14 @@ public class FreedomoticInjector extends AbstractModule {
         install(new InjectorApi());
         install(new InjectorEnvironment());
         install(new InjectorThings());
-        
-        
-        //TODO: move this definitions to package specific modules (with protected implementation classes)
-        bind(JoinPlugin.class).in(Singleton.class);
-        bind(TriggerCheck.class).in(Singleton.class);
-        
-        bind(ProtocolRead.class);
-        
+        install(new InjectorFeatures());
+        install(new InjectorPersistence());
+        install(new InjectorNlp());
+        install(new InjectorAutomations());
+        install(new InjectorI18n());
+        install(new InjectorSecurity());
+
         bind(AppConfig.class).to(AppConfigImpl.class).in(Singleton.class);
-    
-        bind(Auth.class).to(AuthImpl2.class).in(Singleton.class);
-        
-        bind(I18n.class).to(I18nImpl.class).in(Singleton.class);
+
     }
 }

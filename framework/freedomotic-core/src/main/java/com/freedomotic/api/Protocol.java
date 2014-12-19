@@ -20,8 +20,6 @@
 package com.freedomotic.api;
 
 import com.freedomotic.exceptions.PluginRuntimeException;
-import com.freedomotic.bus.BusConsumer;
-import com.freedomotic.bus.BusMessagesListener;
 import com.freedomotic.events.PluginHasChanged;
 import com.freedomotic.exceptions.PluginShutdownException;
 import com.freedomotic.exceptions.PluginStartupException;
@@ -38,14 +36,10 @@ import javax.jms.ObjectMessage;
  * Uses a Template Method pattern which allows subclass to define how to perform
  * a command or how to act when a specific event is received.
  */
-public abstract class Protocol
-        extends Plugin
-        implements BusConsumer {
+public abstract class Protocol extends Plugin {
 
     private static final Logger LOG = Logger.getLogger(Protocol.class.getName());
-    private static final String ACTUATORS_QUEUE_DOMAIN = "app.actuators.";
     private int pollingWaitTime = -1;
-    private BusMessagesListener listener;
     private Protocol.SensorThread sensorThread;
     private volatile Destination lastDestination;
 
@@ -55,10 +49,8 @@ public abstract class Protocol
      * @param manifest
      */
     public Protocol(String pluginName, String manifest) {
-
         super(pluginName, manifest);
-        this.currentPluginStatus = PluginStatus.STOPPED;
-        register();
+        setStatus(PluginStatus.STOPPED);
     }
 
     /**
@@ -88,10 +80,6 @@ public abstract class Protocol
      */
     protected abstract void onEvent(EventTemplate event);
 
-    private void register() {
-        listener = new BusMessagesListener(this, getBusService());
-        listener.consumeCommandFrom(getCommandsChannelToListen());
-    }
 
     /**
      *
@@ -101,25 +89,12 @@ public abstract class Protocol
         listener.consumeEventFrom(listento);
     }
 
-    private String getCommandsChannelToListen() {
-        String defaultQueue = ACTUATORS_QUEUE_DOMAIN + category + "." + shortName;
-        String customizedQueue = ACTUATORS_QUEUE_DOMAIN + listenOn;
-
-        if (getReadQueue().equalsIgnoreCase("undefined")) {
-            listenOn = defaultQueue + ".in";
-
-            return listenOn;
-        } else {
-            return customizedQueue;
-        }
-    }
-
     /**
      *
      * @param ev
      */
     public void notifyEvent(EventTemplate ev) {
-        if (isRunning()) {
+        if (isAllowedToSend()) {
             notifyEvent(ev, ev.getDefaultDestination());
         }
     }
@@ -134,7 +109,7 @@ public abstract class Protocol
      * @param destination
      */
     public void notifyEvent(EventTemplate ev, String destination) {
-        if (isRunning()) {
+        if (isAllowedToSend()) {
             LOG.fine("Sensor " + this.getName() + " notify event " + ev.getEventName() + ":" + ev.getPayload().toString());
             getBusService().send(ev, destination);
         }
@@ -152,27 +127,27 @@ public abstract class Protocol
                 @Override
                 public synchronized void run() {
                     try {
-                        sensorThread = new Protocol.SensorThread();
-                        sensorThread.start();
-                        PluginHasChanged event = new PluginHasChanged(this, getName(), PluginHasChanged.PluginActions.START);
-                        getBusService().send(event);
-                        currentPluginStatus = PluginStatus.RUNNING;
-                        //onStart() should be called as the last operation, after framework level operations
-                        //for example it may require something related with messaging wich should be initialized first
+                        setStatus(PluginStatus.STARTING);
+                        //onStart() is called before the thread because it may have some initialization for the sensor thread
                         try {
                             onStart();
                         } catch (PluginStartupException startupEx) {
-                            notifyCriticalError(startupEx.getMessage());
+                            notifyCriticalError(startupEx.getMessage(), startupEx);
+                            return; //stop the plugin startup
                         }
+                        sensorThread = new Protocol.SensorThread();
+                        sensorThread.start();
+                        setStatus(PluginStatus.RUNNING);
+                        PluginHasChanged event = new PluginHasChanged(this, getName(), PluginHasChanged.PluginActions.START);
+                        getBusService().send(event);
                     } catch (Exception e) {
-                        currentPluginStatus = PluginStatus.FAILED;
+                        setStatus(PluginStatus.FAILED);
                         setDescription("Plugin start FAILED. see logs for details.");
                         LOG.log(Level.SEVERE, "Plugin " + getName() + " start FAILED: " + e.getLocalizedMessage(), e);
                     }
 
                 }
             };
-
             getApi().getAuth().pluginExecutePrivileged(this, action);
         }
     }
@@ -188,7 +163,7 @@ public abstract class Protocol
                 @Override
                 public synchronized void run() {
                     try {
-                        currentPluginStatus = PluginStatus.STOPPING;
+                        setStatus(PluginStatus.STOPPING);
                         try {
                             onStop();
                         } catch (PluginShutdownException shutdownEx) {
@@ -198,9 +173,9 @@ public abstract class Protocol
                         listener.unsubscribeEvents();
                         PluginHasChanged event = new PluginHasChanged(this, getName(), PluginHasChanged.PluginActions.STOP);
                         getBusService().send(event);
-                        currentPluginStatus = PluginStatus.STOPPED;
+                        setStatus(PluginStatus.STOPPED);
                     } catch (Exception e) {
-                        currentPluginStatus = PluginStatus.FAILED;
+                        setStatus(PluginStatus.FAILED);
                         setDescription("Plugin stop FAILED. see logs for details.");
                         LOG.log(Level.SEVERE, "Error stopping " + getName() + ": " + e.getLocalizedMessage(), e);
                     }
@@ -355,7 +330,7 @@ public abstract class Protocol
                     }
                 }
             } catch (Exception e) {
-                notifyError(e.getMessage());
+                notifyCriticalError(e.getMessage(), e);
             }
         }
     }

@@ -11,9 +11,9 @@ import com.freedomotic.bus.BusMessagesListener;
 import com.freedomotic.bus.BusService;
 import com.freedomotic.events.ObjectHasChangedBehavior;
 import com.freedomotic.model.ds.Config;
-import com.freedomotic.objects.BehaviorLogic;
-import com.freedomotic.objects.EnvObjectLogic;
-import com.freedomotic.objects.ThingsRepositoryImpl;
+import com.freedomotic.behaviors.BehaviorLogic;
+import com.freedomotic.things.EnvObjectLogic;
+import com.freedomotic.things.ThingRepository;
 import com.google.inject.Inject;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,10 +30,12 @@ public class SynchManager implements BusConsumer {
     private static final String LISTEN_CHANNEL = "app.event.sensor.object.behavior.change";
     private BusMessagesListener listener;
     private final BusService busService;
+    private final ThingRepository thingsRepository;
 
     @Inject
-    public SynchManager(BusService busService) {
+    SynchManager(BusService busService, ThingRepository thingsRepository) {
         this.busService = busService;
+        this.thingsRepository = thingsRepository;
         listener = new BusMessagesListener(this, busService);
         // It register the GLOBAL event channel, this mean it is using
         // standard JMS Topics not the activemq Virtual Topics
@@ -59,7 +61,7 @@ public class SynchManager implements BusConsumer {
 
     private void synchronizeLocalThing(ObjectHasChangedBehavior event) {
         // Synchronize changed behaviors
-        EnvObjectLogic obj = ThingsRepositoryImpl.getObjectByUUID(event.getProperty("object.uuid"));
+        EnvObjectLogic obj = thingsRepository.findOne(event.getProperty("object.uuid"));
         for (BehaviorLogic b : obj.getBehaviors()) {
             String value = event.getProperty("object.behavior." + b.getName());
             if (value != null && !value.isEmpty()) {

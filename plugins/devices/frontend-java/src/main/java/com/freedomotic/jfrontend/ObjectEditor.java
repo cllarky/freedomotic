@@ -22,18 +22,19 @@ import com.freedomotic.model.ds.Config;
 import com.freedomotic.model.object.Behavior;
 import com.freedomotic.model.object.EnvObject;
 import com.freedomotic.model.object.Representation;
-import com.freedomotic.objects.BehaviorLogic;
-import com.freedomotic.objects.BooleanBehaviorLogic;
-import com.freedomotic.objects.EnvObjectLogic;
-import com.freedomotic.objects.ListBehaviorLogic;
-import com.freedomotic.objects.RangedIntBehaviorLogic;
-import com.freedomotic.objects.TaxonomyBehaviorLogic;
+import com.freedomotic.behaviors.BehaviorLogic;
+import com.freedomotic.behaviors.BooleanBehaviorLogic;
+import com.freedomotic.things.EnvObjectLogic;
+import com.freedomotic.behaviors.ListBehaviorLogic;
+import com.freedomotic.behaviors.RangedIntBehaviorLogic;
+import com.freedomotic.behaviors.TaxonomyBehaviorLogic;
 import com.freedomotic.reactions.Command;
 import com.freedomotic.reactions.CommandPersistence;
 import com.freedomotic.reactions.Trigger;
 import com.freedomotic.reactions.TriggerPersistence;
 import com.freedomotic.security.Auth;
 import com.freedomotic.i18n.I18n;
+import com.freedomotic.nlp.NlpCommand;
 import com.freedomotic.util.Info;
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -74,6 +75,7 @@ public class ObjectEditor
     private PropertiesPanel_1 pnlTriggers;
     //private PropertiesPanel_1 controlPanel;
     ReactionsPanel reactionsPanel;
+    private final NlpCommand nlpCommands;
 
     private static API api = null;
     private static I18n I18n;
@@ -92,6 +94,7 @@ public class ObjectEditor
      */
     public ObjectEditor(final EnvObjectLogic obj) {
         this.object = obj;
+        this.nlpCommands = api.nlpCommands();
         oldName = object.getPojo().getName();
 
         EnvObject pojo = obj.getPojo();
@@ -1007,7 +1010,7 @@ public class ObjectEditor
     private void populateAutomationsTab() {
         tabAutomations.removeAll();
         tabAutomations.setLayout(new BorderLayout());
-        reactionsPanel = new ReactionsPanel(I18n, object);
+        reactionsPanel = new ReactionsPanel(I18n, nlpCommands, object);
         tabAutomations.add(reactionsPanel);
         tabAutomations.validate();
     }

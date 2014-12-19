@@ -27,8 +27,8 @@ import com.freedomotic.api.Client;
 import com.freedomotic.environment.EnvironmentLogic;
 import com.freedomotic.exceptions.RepositoryException;
 import com.freedomotic.model.ds.Config;
-import com.freedomotic.objects.EnvObjectLogic;
-import com.freedomotic.objects.ThingsRepository;
+import com.freedomotic.things.EnvObjectLogic;
+import com.freedomotic.things.ThingRepository;
 import java.io.File;
 
 /**
@@ -40,7 +40,7 @@ public class ObjectPluginPlaceholder implements Client {
     private final File example;
     private final EnvObjectLogic template;
     private Config config;
-    private final ThingsRepository thingsRepository;
+    private final ThingRepository thingsRepository;
 
     /**
      *
@@ -48,14 +48,13 @@ public class ObjectPluginPlaceholder implements Client {
      * @param example
      * @throws RepositoryException
      */
-    public ObjectPluginPlaceholder(ThingsRepository thingsRepository, File example) throws RepositoryException {
+    public ObjectPluginPlaceholder(ThingRepository thingsRepository, File example) throws RepositoryException {
         this.example = example;
         this.thingsRepository = thingsRepository;
         template = thingsRepository.load(example);
         if (template == null) {
             throw new IllegalStateException("Cannot build an object placeholder plugin from a null object");
         }           
-        System.out.println("TEMPLATE: " + template.toString());
         config = new Config();
     }
 
@@ -185,5 +184,11 @@ public class ObjectPluginPlaceholder implements Client {
         }
         EnvObjectLogic obj = thingsRepository.copy(template);
         obj.setEnvironment(env);
+    }
+
+    @Override
+    public void destroy() {
+        // There should be no need to destroy a placeholder
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 }

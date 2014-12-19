@@ -1,10 +1,10 @@
-<com.freedomotic.model.object.EnvObject>
+<object>
   <name>Kitchen Light-145</name>
   <description>A light</description>
   <actAs>virtual</actAs>
   <type>EnvObject.ElectricDevice.Light</type>
   <uuid>24b01c5b-ea44-4a6e-8d89-f3f468765840</uuid>
-  <hierarchy>com.freedomotic.objects.impl.Light</hierarchy>
+  <hierarchy>com.freedomotic.things.impl.Light</hierarchy>
   <protocol>unknown</protocol>
   <phisicalAddress>unknown</phisicalAddress>
   <behaviors>
@@ -89,4 +89,4 @@
   </triggers>
   <currentRepresentation>0</currentRepresentation>
   <envUUID>df28cda0-a866-11e2-9e96-0800200c9a66</envUUID>
-</com.freedomotic.model.object.EnvObject>
+</object>

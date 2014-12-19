@@ -22,8 +22,8 @@ package com.freedomotic.plugins.devices.hello;
 import com.freedomotic.api.EventTemplate;
 import com.freedomotic.api.Protocol;
 import com.freedomotic.exceptions.UnableToExecuteException;
-import com.freedomotic.objects.EnvObjectLogic;
-import com.freedomotic.objects.ThingsRepository;
+import com.freedomotic.things.EnvObjectLogic;
+import com.freedomotic.things.ThingRepository;
 import com.freedomotic.reactions.Command;
 import com.google.inject.Inject;
 import java.io.IOException;
@@ -36,7 +36,7 @@ public class HelloWorld
     final int POLLING_WAIT;
     
     @Inject
-    private ThingsRepository thingsRepository;
+    private ThingRepository thingsRepository;
 
     public HelloWorld() {
         //every plugin needs a name and a manifest XML file
