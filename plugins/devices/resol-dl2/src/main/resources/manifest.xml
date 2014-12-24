@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <config>
     <properties>
-        <property name="description"    value="Communicates with the Resol DL2 over Ethernet"/>
+        <property name="description"    value="Collect data from Resol DL2"/>
         <property name="protocol.name"  value="ETHResolDL2"/>
         <property name="category"       value="protocol"/>
-        <property name="short-name"     value="ResolDL2"/>
+        <property name="short-name"     value="resoldl2"/>
 
         <property name="startup-time"   value="on load"/>
         <property name="polling-time"   value="5000"/>

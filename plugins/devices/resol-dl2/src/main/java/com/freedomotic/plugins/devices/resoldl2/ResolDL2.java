@@ -2,7 +2,6 @@ package com.freedomotic.plugins.devices.resoldl2;
 
 import com.freedomotic.api.EventTemplate;
 import com.freedomotic.api.Protocol;
-import com.freedomotic.app.Freedomotic;
 import com.freedomotic.events.ProtocolRead;
 import com.freedomotic.exceptions.PluginShutdownException;
 import com.freedomotic.exceptions.PluginStartupException;
@@ -10,21 +9,19 @@ import com.freedomotic.exceptions.PluginRuntimeException;
 import com.freedomotic.exceptions.UnableToExecuteException;
 import com.freedomotic.reactions.Command;
 import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.SocketException;
-import java.net.Socket;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /*
  * A sensor device for the VBus web device DL2 by Resol which is a Web interface and
@@ -34,98 +31,78 @@ import java.util.regex.Pattern;
  */
 public class ResolDL2 extends Protocol {
 
-    private static final Logger LOG = Logger.getLogger(ResolDL2.class.getName());
+    private final static Logger LOG = LoggerFactory.getLogger(ResolDL2.class.getName());
     private static ArrayList<Board> boards = null;
     private static int BOARD_NUMBER;
-    private static int POLLING_TIME = 1000;
-    private Socket socket = null;
-    private DataOutputStream outputStream = null;
-    private BufferedReader inputStream = null;
-    private String address = null;
-    private int SOCKET_TIMEOUT = configuration.getIntProperty("socket-timeout", 1000);
 
     /**
      * Initializations
      */
     public ResolDL2() {
         super("Resol DL2", "/resol-dl2/manifest.xml");
-        setPollingWait(POLLING_TIME);
     }
 
     private void loadBoards() {
         if (boards == null) {
             boards = new ArrayList<Board>();
-        }
-        setDescription("Module running, " + BOARD_NUMBER + " sources.");
-        LOG.info("Loading Resol DL2 devices..");
-        for (int i = 0; i < BOARD_NUMBER; i++) {
-            String ipToQuery = configuration.getTuples().getStringProperty(i, "ip-to-query", "");
-            int portToQuery = configuration.getTuples().getIntProperty(i, "port-to-query", 80);
-            boolean logSourceData = configuration.getTuples().getBooleanProperty(i, "log_source_data", false);
 
-            address = ipToQuery + ":" + portToQuery;
+            LOG.debug("Loading plugin config..");
+            for (int i = 0; i < BOARD_NUMBER; i++) {
+                String ipToQuery = configuration.getTuples().getStringProperty(i, "ip-to-query", "");
+                int portToQuery = configuration.getTuples().getIntProperty(i, "port-to-query", 80);
+                boolean logSourceData = configuration.getTuples().getBooleanProperty(i, "log_source_data", false);
 
-            LOG.info("Loading Resol DL2 device: " + address);
+                LOG.info("Loading config for Resol DL2 device: {}", ipToQuery + ":" + portToQuery);
 
-            Board board = new Board(ipToQuery, portToQuery, logSourceData);
-            boards.add(board);
+                Board board = new Board(ipToQuery, portToQuery, logSourceData);
+                boards.add(board);
 
-            // see what config we have for the devices..
-            HashMap tupleSet = configuration.getTuples().getTuple(i);
-            Iterator iter = tupleSet.keySet().iterator();
+                // see what config we have for the devices..
+                HashMap tupleSet = configuration.getTuples().getTuple(i);
+                Iterator iter = tupleSet.keySet().iterator();
 
-            while (iter.hasNext()) {
+                while (iter.hasNext()) {
 
-                String hashKey = (String) iter.next();
-                String hashVal = (String) tupleSet.get(hashKey);
+                    String hashKey = (String) iter.next();
+                    String hashVal = (String) tupleSet.get(hashKey);
 
-                // LOG.log(Level.INFO, "found key: {0}", hashKey);
-                // LOG.log(Level.INFO, "found value: {0}", hashVal);
-                if (hashKey.startsWith("device")) {
+                    LOG.debug("Found key: {}", hashKey);
+                    LOG.debug("Found value: {}", hashVal);
+                    if (hashKey.startsWith("device")) {
 
-                    Pattern pattern = Pattern.compile("device(\\d+)\\.([^\\d]+)((\\d+)\\.(.*))?");
-                    Matcher matcher = pattern.matcher(hashKey);
+                        Pattern pattern = Pattern.compile("device(\\d+)\\.([^\\d]+)((\\d+)\\.(.*))?");
+                        Matcher matcher = pattern.matcher(hashKey);
 
-                    if (matcher.matches()) {
-                        Integer deviceNo = Integer.parseInt(matcher.group(1));
+                        if (matcher.matches()) {
+                            Integer deviceNo = Integer.parseInt(matcher.group(1));
 
-                        if ("name".equals(matcher.group(2))) {
-                            // LOG.log(Level.INFO, "Setting device name for id={0} to: {1}", new Object[]{deviceNo.toString(), hashVal});
-                            board.setDeviceName(deviceNo, hashVal);
-                        } else if ("id".equals(matcher.group(2))) {
-                            // LOG.log(Level.INFO, "Resol device id={0}", hashVal);
-                            board.setDeviceId(deviceNo, Integer.parseInt(hashVal));
-                        } else if ("sensor".equals(matcher.group(2))) {
-                            Integer sensorNo = Integer.parseInt(matcher.group(4));
-                            // LOG.log(Level.INFO, "Sensor id={0}element: {1}", new Object[]{matcher.group(4), matcher.group(5)});
-                            if ("index".equals(matcher.group(5))) {
-                                board.setSensorIndex(i, sensorNo, Integer.parseInt(hashVal));
-                            } else if ("name".equals(matcher.group(5))) {
-                                board.setSensorName(i, sensorNo, hashVal);
-                            } else {
-                                LOG.log(Level.WARNING, "Bad config descriptor: {0}", hashKey);
+                            if ("name".equals(matcher.group(2))) {
+                                LOG.debug("Setting device name for id={} to: {}", deviceNo.toString(), hashVal);
+                                board.setDeviceName(deviceNo, hashVal);
+                            } else if ("id".equals(matcher.group(2))) {
+                                LOG.debug("Resol device id={}", hashVal);
+                                board.setDeviceId(deviceNo, Integer.parseInt(hashVal));
+                            } else if ("sensor".equals(matcher.group(2))) {
+                                Integer sensorNo = Integer.parseInt(matcher.group(4));
+                                LOG.debug("Sensor id={} element: {}", matcher.group(4), matcher.group(5));
+                                if ("index".equals(matcher.group(5))) {
+                                    board.setSensorIndex(i, sensorNo, Integer.parseInt(hashVal));
+                                } else if ("name".equals(matcher.group(5))) {
+                                    board.setSensorName(i, sensorNo, hashVal);
+                                } else {
+                                    LOG.warn("Bad config descriptor: {}", hashKey);
+                                }
                             }
+
+                        } else {
+                            LOG.warn("Bad config descriptor: {}", hashKey);
                         }
 
-                    } else {
-                        LOG.log(Level.WARNING, "Bad config descriptor: {0}", hashKey);
                     }
 
+                    iter.remove();
                 }
-
-                iter.remove();
             }
-        }
-    }
-
-    private void disconnect() {
-        // close streams and socket
-        try {
-            inputStream.close();
-            outputStream.close();
-            socket.close();
-        } catch (Exception ex) {
-            //do nothing. Best effort
         }
     }
 
@@ -135,51 +112,37 @@ public class ResolDL2 extends Protocol {
         BOARD_NUMBER = configuration.getTuples().size();
 
         if (BOARD_NUMBER == 0) {
-            this.stop();
             throw new PluginStartupException("ResolDL2 plugin failed to start: configuration not found or missing source config.");
-
         } else {
-            POLLING_TIME = configuration.getIntProperty("polling-time", 1000);
-            LOG.log(Level.INFO, "Starting ResolDL2 plugin for {0} device(s).", BOARD_NUMBER);
-            super.onStart();
-            setPollingWait(POLLING_TIME);
+            
+            if (BOARD_NUMBER == 1) {
+                setDescription("Collecting from 1 device.");
+                LOG.info("Starting ResolDL2 plugin for 1 device.");
+            } else {
+                setDescription("Collecting from " + BOARD_NUMBER + " devices.");
+                LOG.info("Starting ResolDL2 plugin for {} devices.", BOARD_NUMBER);
+            }
+            
+            // super.onStart();
+            setPollingWait(configuration.getIntProperty("polling-time", 10000));
             loadBoards();
         }
     }
 
     @Override
     public void onStop() throws PluginShutdownException {
-        super.onStop();
-        // LOG.info("Stopping ResolDL2 plugin..");
-        //release resources
-        boards.clear();
-        boards = null;
+        LOG.debug("Stopping ResolDL2 plugin..");
         setPollingWait(-1); //disable polling
         //display the default description
-        setDescription(configuration.getStringProperty("description", "Resol DL2 Data"));
+        setDescription(configuration.getStringProperty("description", ""));
         LOG.info("ResolDL2 plugin stopped.");
     }
 
     @Override
     protected void onRun() throws PluginRuntimeException {
-        // check to see if the plugin has just been stopped..
-        if (boards != null) {
-            for (Board board : boards) {
-                getData(board);
-                // catch if we are exiting due to an error..
-                // does this really happen?
-                // if so, we should throw the PluginRuntimeException
-                if (boards == null) {
-                    break;
-                }
-            }
 
-            try {
-                Thread.sleep(POLLING_TIME);
-            } catch (InterruptedException ex) {
-                LOG.info("Thread interrupted - shutting down module.");
-                LOG.log(Level.SEVERE, null, ex);
-            }
+        for (Board board : boards) {
+            getData(board);
         }
     }
 
@@ -201,6 +164,114 @@ public class ResolDL2 extends Protocol {
                 reader.close();
             }
         }
+    }
+
+    private void getData(Board board) {
+        // retrieve JSON from the device
+
+        String statusFileURL = null;
+        ResolData resolStatus;
+        String jsonContent = null;
+        Boolean getFailed = false;
+        try {
+            statusFileURL = "http://" + board.getIpAddress() + ":"
+                    + Integer.toString(board.getPort()) + "/dl2/download/download?source=current&output_type=json";
+            LOG.info("ResolDL2 module getting data from: {}", statusFileURL);
+            jsonContent = readUrl(statusFileURL);
+            Gson gson = new Gson();
+
+            resolStatus = gson.fromJson(jsonContent, ResolData.class);
+
+            if (board.getLogSourceData()) {
+                LOG.info("Received source data: {}", jsonContent);
+            }
+
+            LOG.info("Resol DL2 devices={}", resolStatus.devices());
+
+            for (int deviceNo = 0; deviceNo < resolStatus.devices(); deviceNo++) {
+
+                String boardAddress = board.getIpAddress() + ":" + board.getPort() + ":";
+
+                // do we have pre-defined values to retrieve?
+                if (board.getDeviceConfigSensors(deviceNo) > 0) {
+                    LOG.debug("Getting {} sensors..", board.getDeviceConfigSensors(deviceNo));
+                    for (int sensorNo = 1; sensorNo <= board.getDeviceConfigSensors(deviceNo); sensorNo++) {
+
+                        String sensorName = board.getSensorName(deviceNo, sensorNo);
+
+                        int sensorIndex = board.getSensorIndex(deviceNo, sensorNo);
+                        Double sensorValue = resolStatus.getValueByIndex(deviceNo, sensorIndex);
+
+                        LOG.debug("Sensor:{}={}", sensorName, sensorValue);
+
+                        ProtocolRead event = new ProtocolRead(this, "ResolDL2", boardAddress + sensorName);
+
+                        event.addProperty("value", sensorValue.toString());
+                        this.notifyEvent(event);
+
+                    }
+                } else {
+                    // no pre-defined name/indexes to report on,
+                    // so we fall-back to temps and relays..
+
+                    LOG.info("Device id: {}, Source: {}, temps: {}, relays: {}",
+                            new Object[]{deviceNo,
+                                resolStatus.deviceName(deviceNo),
+                                resolStatus.temps(deviceNo),
+                                resolStatus.relays(deviceNo)});
+
+                    // loop through the temps..
+                    for (Integer intTemp = 1; intTemp <= resolStatus.temps(deviceNo); intTemp++) {
+                        ProtocolRead event = new ProtocolRead(this, "ResolDL2", boardAddress + "temp" + intTemp.toString());
+                        LOG.debug("Sensor:temp{}={}", intTemp, resolStatus.temp(deviceNo, intTemp));
+                        event.addProperty("value", resolStatus.temp(deviceNo, intTemp).toString());
+                        this.notifyEvent(event);
+                    }
+                    // loop through the relays..
+                    for (Integer intRelay = 1; intRelay <= resolStatus.relays(deviceNo); intRelay++) {
+                        ProtocolRead event = new ProtocolRead(this, "ResolDL2", boardAddress + "relay" + intRelay.toString());
+                        LOG.debug("Sensor:relay{}={}", intRelay, resolStatus.relay(deviceNo, intRelay));
+                        event.addProperty("value", resolStatus.relay(deviceNo, intRelay).toString());
+                        this.notifyEvent(event);
+                    }
+                }
+
+            }
+            // if we got to here, all went well.
+
+        } catch (SocketException errMsg) {
+            // do we really want to permanently give up here?
+            // maybe this is just a transient thing?
+            // TODO: maybe count the failures, or failure time?
+            LOG.warn("Plugin Resol DL2 connection timed out, no reply from the device at: {}. {}",
+                    statusFileURL, errMsg.getLocalizedMessage());
+            // this.setDescription("Connection timed out, no reply from the device at " + statusFileURL);
+        } catch (JsonSyntaxException ex) {
+            LOG.warn("Plugin Resol DL2 JSON parse error: {}. Bad data from {}, Data: {}",
+                    new Object[]{ex.getLocalizedMessage(), statusFileURL, jsonContent});
+            this.stop();
+            // setDescription("Bad data from " + statusFileURL + jsonContent);
+
+        } catch (Exception ex) {
+            LOG.warn("Plugin Resol DL2 data collection error: {}", ex.getLocalizedMessage());
+            this.stop();
+            // setDescription("Unable to connect to " + statusFileURL);
+        }
+    }
+
+    @Override
+    protected boolean canExecute(Command c) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    protected void onEvent(EventTemplate event) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    protected void onCommand(Command c) throws IOException, UnableToExecuteException {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     /* Define a class to contain the JSON output from the device..
@@ -351,119 +422,5 @@ public class ResolDL2 extends Protocol {
         public Double relay(int device, int relayNo) {
             return headersets.get(device).packets.get(0).field_values.get(this.relayIndex(device, relayNo)).raw_value;
         }
-    }
-
-    private void getData(Board board) {
-        // retrieve JSON from the device
-
-        String statusFileURL = null;
-        ResolData resolStatus;
-        String jsonContent = null;
-        try {
-            statusFileURL = "http://" + board.getIpAddress() + ":"
-                    + Integer.toString(board.getPort()) + "/dl2/download/download?source=current&output_type=json";
-            LOG.log(Level.INFO, "ResolDL2 module getting data from {0}", statusFileURL);
-            jsonContent = readUrl(statusFileURL);
-            Gson gson = new Gson();
-
-            resolStatus = gson.fromJson(jsonContent, ResolData.class);
-
-            if (board.getLogSourceData()) {
-                LOG.log(Level.INFO, "Received source data: {0}", jsonContent);
-            }
-
-            LOG.log(Level.INFO, "Resol DL2 devices={0}", resolStatus.devices());
-
-            for (int deviceNo = 0; deviceNo < resolStatus.devices(); deviceNo++) {
-
-                String boardAddress = board.getIpAddress() + ":" + board.getPort() + ":";
-
-                // do we have pre-defined values to retrieve?
-                if (board.getDeviceConfigSensors(deviceNo) > 0) {
-                    //LOG.log(Level.INFO, "Getting {0} sensors..",
-                    //        board.getDeviceConfigSensors(deviceNo));
-                    for (int sensorNo = 1; sensorNo <= board.getDeviceConfigSensors(deviceNo); sensorNo++) {
-
-                        String sensorName = board.getSensorName(deviceNo, sensorNo);
-
-                        int sensorIndex = board.getSensorIndex(deviceNo, sensorNo);
-                        Double sensorValue = resolStatus.getValueByIndex(deviceNo, sensorIndex);
-
-                        LOG.log(Level.INFO, "Sensor:{0}={1}",
-                                new Object[]{sensorName, sensorValue});
-
-                        ProtocolRead event = new ProtocolRead(this, "ResolDL2", boardAddress + sensorName);
-
-                        event.addProperty("value", sensorValue.toString());
-                        this.notifyEvent(event);
-
-                    }
-                } else {
-                    // no pre-defined name/indexes to report on,
-                    // so we fall-back to temps and relays..
-
-                    LOG.log(Level.INFO, "Device id: {0}, Source: {1}, temps: {2}, relays: {3}",
-                            new Object[]{deviceNo,
-                                resolStatus.deviceName(deviceNo),
-                                resolStatus.temps(deviceNo),
-                                resolStatus.relays(deviceNo)});
-
-                    // loop through the temps..
-                    for (Integer intTemp = 1; intTemp <= resolStatus.temps(deviceNo); intTemp++) {
-                        ProtocolRead event = new ProtocolRead(this, "ResolDL2", boardAddress + "temp" + intTemp.toString());
-                        LOG.log(Level.INFO, "Sensor:temp{0}={1}",
-                                new Object[]{intTemp, resolStatus.temp(deviceNo, intTemp)});
-                        event.addProperty("value", resolStatus.temp(deviceNo, intTemp).toString());
-                        this.notifyEvent(event);
-                    }
-                    // loop through the relays..
-                    for (Integer intRelay = 1; intRelay <= resolStatus.relays(deviceNo); intRelay++) {
-                        ProtocolRead event = new ProtocolRead(this, "ResolDL2", boardAddress + "relay" + intRelay.toString());
-                        LOG.log(Level.INFO, "Sensor:relay{0}={1}",
-                                new Object[]{intRelay, resolStatus.relay(deviceNo, intRelay)});
-                        event.addProperty("value", resolStatus.relay(deviceNo, intRelay).toString());
-                        this.notifyEvent(event);
-                    }
-                }
-
-            }
-
-        } catch (SocketException errMsg) {
-            // do we really want to permanently give up here?
-            // maybe this is just a transient thing?
-            LOG.log(Level.SEVERE, "Plugin Resol DL2 connection timed out, no reply from the device at: {0}. {1}",
-                    new Object[]{statusFileURL, errMsg});
-            disconnect();
-            this.stop();
-            this.setDescription("Connection timed out, no reply from the device at " + statusFileURL);
-        } catch (JsonSyntaxException errMsg) {
-            LOG.log(Level.SEVERE, "Plugin Resol DL2 JSON parse error: {0}. Bad data from {1}, Data: {2}",
-                    new Object[]{errMsg, statusFileURL, jsonContent});
-            disconnect();
-            this.stop();
-            setDescription("Bad data from " + statusFileURL + jsonContent);
-
-        } catch (Exception errMsg) {
-            LOG.log(Level.SEVERE, "Plugin Resol DL2 data collection error: {0}",
-                    new Object[]{errMsg});
-            disconnect();
-            this.stop();
-            setDescription("Unable to connect to " + statusFileURL);
-        }
-    }
-
-    @Override
-    protected boolean canExecute(Command c) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    protected void onEvent(EventTemplate event) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    protected void onCommand(Command c) throws IOException, UnableToExecuteException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 }
